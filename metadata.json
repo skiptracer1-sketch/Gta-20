@@ -1,0 +1,8 @@
+{
+  "name": "GTA 20 — 2046 Neo-Campus & Vegas Edition",
+  "description": "Cross-platform 2046 college & Neo-Vegas open-world action game featuring 3D hover-driving, top-down 2D campus heists, story chapters, arcade minigames, PWA offline support, and a React Native Android wrapper guide.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
