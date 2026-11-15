@@ -12,6 +12,8 @@ type NightOperation = {
   number: string;
   title: string;
   district: string;
+  x: number;
+  z: number;
   briefing: string;
   choices: [Choice, Choice];
 };
@@ -23,6 +25,7 @@ const OPERATIONS: NightOperation[] = [
     number: '01',
     title: 'The Velvet Signal',
     district: 'Neon Gate',
+    x: 14, z: -8,
     briefing: 'A club DJ has vanished with the only recording of a high-profile backroom deal. Big Red has one chance to get the evidence before the security crew catches on.',
     choices: [
       {label: 'Blend in and find the DJ', result: 'You secure the recording without drawing attention.', heat: 0, influence: 20},
@@ -33,6 +36,7 @@ const OPERATIONS: NightOperation[] = [
     number: '02',
     title: 'Midnight Courier',
     district: 'Strip Plaza',
+    x: 42, z: -7,
     briefing: 'An anonymous courier wants a midnight pickup. The package contains a route map that could expose who runs the city after dark.',
     choices: [
       {label: 'Protect the courier', result: 'The courier gives you a clean route through the city.', heat: 0, influence: 30},
@@ -43,6 +47,7 @@ const OPERATIONS: NightOperation[] = [
     number: '03',
     title: 'Penthouse Frequency',
     district: 'Big Red Tower',
+    x: -5, z: 35,
     briefing: 'At the top of the tower, Big Red discovers the signal controlling the nightclub surveillance network. Decide how the night ends.',
     choices: [
       {label: 'Release the evidence', result: 'The city sees the truth. Big Red earns underground respect.', heat: 15, influence: 60},
@@ -51,7 +56,7 @@ const OPERATIONS: NightOperation[] = [
   },
 ];
 
-type Progress = {stage: number; heat: number; influence: number; lastResult: string};
+type Progress = {stage: number; heat: number; influence: number; lastResult: string; arrived: boolean};
 
 const initialProgress = (): Progress => {
   try {
@@ -63,17 +68,19 @@ const initialProgress = (): Progress => {
         heat: typeof saved.heat === 'number' ? saved.heat : 0,
         influence: typeof saved.influence === 'number' ? saved.influence : 0,
         lastResult: typeof saved.lastResult === 'string' ? saved.lastResult : '',
+        arrived: saved.arrived === true && saved.stage !== OPERATIONS.length,
       };
     }
   } catch {
     // Private browsing or malformed local data should not prevent play.
   }
-  return {stage: 0, heat: 0, influence: 0, lastResult: ''};
+  return {stage: 0, heat: 0, influence: 0, lastResult: '', arrived: false};
 };
 
 /**
  * Separate, opt-in mature nightlife story on top of the existing Big Red 3D free-roam game.
- * Narrative choices are playable; they do not impersonate location-based 3D checkpoints.
+ * Contact choices unlock by reaching their actual 3D GPS waypoint, or opting into
+ * clearly labeled story-only access when WebGL or movement is unavailable.
  * The age prompt is a self-declaration, not third-party age verification.
  */
 export function AfterDarkMode() {
@@ -86,17 +93,34 @@ export function AfterDarkMode() {
   }, [progress]);
 
   const operation = OPERATIONS[progress.stage];
+  const onArrive = () => {
+    setProgress(previous => previous.stage === progress.stage && !previous.arrived
+      ? {...previous, arrived: true} : previous);
+    setBriefingOpen(true);
+  };
+  const waypoint = operation && !progress.arrived ? {
+    id: `after-dark-contact-${progress.stage}`,
+    title: operation.title,
+    x: operation.x,
+    z: operation.z,
+    onArrive,
+  } : undefined;
 
   const choose = (choice: Choice) => {
-    setProgress(previous => ({
-      stage: Math.min(previous.stage + 1, OPERATIONS.length),
-      heat: Math.max(0, Math.min(100, previous.heat + choice.heat)),
-      influence: previous.influence + choice.influence,
-      lastResult: choice.result,
-    }));
+    setProgress(previous => !previous.arrived || previous.stage >= OPERATIONS.length
+      ? previous : ({
+        stage: previous.stage + 1,
+        heat: Math.max(0, Math.min(100, previous.heat + choice.heat)),
+        influence: previous.influence + choice.influence,
+        lastResult: choice.result,
+        arrived: false,
+      }));
   };
 
-  const restartStory = () => setProgress({stage: 0, heat: 0, influence: 0, lastResult: ''});
+  const restartStory = () => {
+    setProgress({stage: 0, heat: 0, influence: 0, lastResult: '', arrived: false});
+    setBriefingOpen(true);
+  };
 
   if (!ageConfirmed) {
     return (
@@ -124,7 +148,11 @@ export function AfterDarkMode() {
 
   return (
     <div className="relative bg-black">
-      <BigRed3DMode />
+      <BigRed3DMode afterDark={{
+        waypoint,
+        paused: briefingOpen,
+        status: operation ? (progress.arrived ? 'Contact unlocked · open dossier' : `Head to ${operation.district}`) : 'All three contacts cleared',
+      }} />
       <div className="pointer-events-none absolute left-3 top-32 z-30 sm:left-6">
         <button type="button" onClick={() => setBriefingOpen(true)}
           className="pointer-events-auto min-h-11 rounded-xl border border-rose-400/60 bg-black/85 px-4 py-2 text-xs font-black tracking-wider text-rose-100 shadow-lg backdrop-blur-md hover:bg-rose-950 focus-visible:outline-2 focus-visible:outline-cyan-300">
@@ -165,15 +193,34 @@ export function AfterDarkMode() {
                 <p className="mt-6 text-xs font-bold uppercase tracking-widest text-rose-300">Contact {operation.number} · {operation.district}</p>
                 <h3 className="mt-2 text-2xl font-black">{operation.title}</h3>
                 <p className="mt-3 leading-relaxed text-slate-300">{operation.briefing}</p>
-                <div className="mt-6 grid gap-3">
-                  {operation.choices.map(choice => (
-                    <button key={choice.label} type="button" onClick={() => choose(choice)}
-                      className="min-h-12 rounded-xl border border-rose-400/40 bg-rose-950/50 px-4 py-3 text-left text-sm font-bold text-white hover:border-rose-300 hover:bg-rose-900/70 focus-visible:outline-2 focus-visible:outline-cyan-300">
-                      {choice.label}
+                {progress.arrived ? (
+                  <>
+                    <p role="status" className="mt-5 rounded-xl border border-cyan-400/35 bg-cyan-950/30 p-3 text-sm font-bold text-cyan-200">
+                      ✓ Contact reached. Choose your next move.
+                    </p>
+                    <div className="mt-4 grid gap-3">
+                      {operation.choices.map(choice => (
+                        <button key={choice.label} type="button" onClick={() => choose(choice)}
+                          className="min-h-12 rounded-xl border border-rose-400/40 bg-rose-950/50 px-4 py-3 text-left text-sm font-bold text-white hover:border-rose-300 hover:bg-rose-900/70 focus-visible:outline-2 focus-visible:outline-cyan-300">
+                          {choice.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-5 space-y-3">
+                    <p className="text-sm text-rose-100">Drive or walk to the glowing rose checkpoint at {operation.district}. Follow the GPS marker. Contact choices unlock on arrival.</p>
+                    <button type="button" onClick={() => setBriefingOpen(false)}
+                      className="min-h-12 w-full rounded-xl bg-rose-600 px-4 py-3 text-sm font-black text-white hover:bg-rose-500 focus-visible:outline-2 focus-visible:outline-cyan-300">
+                      📍 TRACK CONTACT IN 3D
                     </button>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs text-slate-400">Choices advance the separate After Dark narrative. The 3D city remains fully playable when you close this briefing.</p>
+                    <button type="button" onClick={() => setProgress(previous => ({...previous, arrived: true}))}
+                      className="min-h-11 w-full rounded-xl border border-white/20 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300">
+                      Skip travel · story-only accessibility option
+                    </button>
+                  </div>
+                )}
+                <p className="mt-4 text-xs text-slate-400">This edition keeps its own progress and does not overwrite the original game's five missions.</p>
               </>
             ) : (
               <>
