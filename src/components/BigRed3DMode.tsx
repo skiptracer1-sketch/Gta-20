@@ -154,7 +154,8 @@ export function BigRed3DMode() {
       return;
     }
     setError('');
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    const mobile = window.matchMedia('(pointer: coarse)').matches;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.15 : 1.6));
     renderer.setSize(host.clientWidth || 320, host.clientHeight || 550);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -349,8 +350,9 @@ export function BigRed3DMode() {
         actionRef.current = false;
       }
       if (driving) {
-        const targetSpeed = vertical * (boost ? 28 : 15);
-        speed = THREE.MathUtils.damp(speed, targetSpeed, vertical ? 3 : 1.8, dt);
+        const braking = t.secondaryPressed || keys.has('KeyB');
+        const targetSpeed = braking ? 0 : vertical * (boost ? 28 : 15);
+        speed = THREE.MathUtils.damp(speed, targetSpeed, braking ? 12 : vertical ? 3 : 1.8, dt);
         heading -= horizontal * dt * 1.75 * Math.max(.3, Math.min(1, Math.abs(speed) / 7));
         player.x -= Math.sin(heading) * speed * dt;
         player.z -= Math.cos(heading) * speed * dt;
