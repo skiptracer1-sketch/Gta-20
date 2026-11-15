@@ -62,6 +62,15 @@ export default function App() {
             ))}
           </nav>
 
+          {/* Big Red playable mode: existing standalone build under public/big-red/ */}
+          <a
+            href="/big-red/"
+            className="shrink-0 rounded-xl border border-fuchsia-400/60 bg-fuchsia-500/15 px-3 py-2 text-xs font-bold text-white transition hover:bg-fuchsia-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+            aria-label="Play Big Red Neon Run"
+          >
+            🔥 Big Red
+          </a>
+
           {/* Zone 3: Single Primary Action */}
           <div className="shrink-0">
             <PWAInstallButton onOpenAndroidGuide={() => handleNavigate('android')} />
