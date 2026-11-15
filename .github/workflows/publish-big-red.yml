@@ -1,0 +1,33 @@
+name: Publish Big Red Neon Run (free GitHub Pages)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/big-red/**'
+      - '.github/workflows/publish-big-red.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: big-red-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GTA 20
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload independent Big Red demo
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./public/big-red
+      - name: Deploy public game
+        id: deployment
+        uses: actions/deploy-pages@v4
