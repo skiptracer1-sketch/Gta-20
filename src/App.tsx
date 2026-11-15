@@ -6,6 +6,7 @@ import {OpenWorld2DMode} from './components/OpenWorld2DMode';
 import {PWAInstallButton} from './components/PWAInstallButton';
 import {StoryArcadeMode} from './components/StoryArcadeMode';
 import {TitleHub} from './components/TitleHub';
+import {VideoVault} from './components/VideoVault';
 import {GameProgressProvider} from './context/GameProgressContext';
 import {GameView} from './types/game';
 import {audioEngine} from './utils/audio';
@@ -16,6 +17,7 @@ const NAV_ITEMS: {id: GameView; label: string}[] = [
   {id: 'campus2d', label: '2D Campus'},
   {id: 'story', label: 'Story'},
   {id: 'android', label: 'Android'},
+  {id: 'media', label: 'Video Vault'},
 ];
 
 export default function App() {
@@ -77,6 +79,7 @@ export default function App() {
             />
           )}
           {view === 'android' && <AndroidRNStudio />}
+          {view === 'media' && <VideoVault />}
         </main>
 
         <OfflineIndicator />
