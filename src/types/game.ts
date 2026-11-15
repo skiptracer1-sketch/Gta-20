@@ -1,4 +1,4 @@
-export type GameView = 'hub' | 'bigred3d' | 'drive3d' | 'campus2d' | 'story' | 'android' | 'media';
+export type GameView = 'hub' | 'bigred3d' | 'drive3d' | 'campus2d' | 'story' | 'android' | 'media' | 'afterdark';
 
 export type TouchControlsMode = 'auto' | 'always' | 'off';
 
