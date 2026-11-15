@@ -1,9 +1,15 @@
-name: Publish Big Red Neon Run (free GitHub Pages)
+name: Publish GTA 20 and Big Red (free GitHub Pages)
 on:
   push:
     branches: [main]
     paths:
-      - 'public/big-red/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'bun.lock'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
       - '.github/workflows/publish-big-red.yml'
   workflow_dispatch:
 permissions:
@@ -11,25 +17,33 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: big-red-pages
+  group: gta20-pages
   cancel-in-progress: false
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout GTA 20
         uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Check TypeScript
+        run: bun run lint
+      - name: Build full game for GitHub Pages
+        env:
+          GITHUB_PAGES: 'true'
+        run: bun run build
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Upload independent Big Red demo
+      - name: Upload full GTA 20 and Big Red game
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./public/big-red
+          path: ./dist
       - name: Deploy public game
         id: deployment
         uses: actions/deploy-pages@v4
