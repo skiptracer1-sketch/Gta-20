@@ -99,6 +99,14 @@ export const TitleHub: React.FC<TitleHubProps> = ({onNavigate}) => {
               </button>
               <button
                 type="button"
+                onClick={() => handleLaunch('bigred3d')}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-rose-400/50 bg-rose-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-rose-500 cursor-pointer"
+              >
+                <Gamepad2 className="h-4 w-4" />
+                Play Big Red 3D
+              </button>
+              <button
+                type="button"
                 onClick={() => handleLaunch('campus2d')}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/15 bg-[#171C28] px-5 py-3 text-sm font-semibold text-white hover:border-cyan-400/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
