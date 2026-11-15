@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {AndroidRNStudio} from './components/AndroidRNStudio';
 import {Drive3DMode} from './components/Drive3DMode';
+import {BigRed3DMode} from './components/BigRed3DMode';
 import {OfflineIndicator} from './components/OfflineIndicator';
 import {OpenWorld2DMode} from './components/OpenWorld2DMode';
 import {PWAInstallButton} from './components/PWAInstallButton';
@@ -13,6 +14,7 @@ import {audioEngine} from './utils/audio';
 
 const NAV_ITEMS: {id: GameView; label: string}[] = [
   {id: 'hub', label: 'Hub'},
+  {id: 'bigred3d', label: 'Big Red 3D'},
   {id: 'drive3d', label: '3D Drive'},
   {id: 'campus2d', label: '2D Campus'},
   {id: 'story', label: 'Story'},
@@ -80,6 +82,7 @@ export default function App() {
         <main>
           {view === 'hub' && <TitleHub onNavigate={handleNavigate} />}
           {view === 'drive3d' && <Drive3DMode />}
+          {view === 'bigred3d' && <BigRed3DMode />}
           {view === 'campus2d' && <OpenWorld2DMode />}
           {view === 'story' && (
             <StoryArcadeMode
