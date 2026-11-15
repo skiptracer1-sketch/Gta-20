@@ -53,9 +53,12 @@ function makeBigRed(): {
   rightArm: THREE.Group;
   leftLeg: THREE.Group;
   rightLeg: THREE.Group;
+  hairLocks: THREE.Group[];
 } {
   const group = new THREE.Group();
   const red = new THREE.MeshStandardMaterial({color: 0xc4152d, metalness: .46, roughness: .3});
+  const leather = new THREE.MeshPhysicalMaterial({color: 0x0b0e18, metalness: .3,
+    roughness: .21, clearcoat: .86, clearcoatRoughness: .15});
   const dark = new THREE.MeshStandardMaterial({color: 0x101829, metalness: .55, roughness: .34});
   const skin = new THREE.MeshStandardMaterial({color: 0xe8ae91, roughness: .86, metalness: 0});
   const copperHair = new THREE.MeshStandardMaterial({color: 0xe63e19, roughness: .38, metalness: .12});
@@ -72,10 +75,29 @@ function makeBigRed(): {
     parent.add(mesh);
     return mesh;
   };
-  // Big Red: fully modeled procedural 3D hero, separate animated limbs.
-  addBox(group, red, .95, 1.0, .55, 0, 1.65, 0);
-  addBox(group, dark, .69, .2, .6, 0, 1.17, 0);
-  addBox(group, trim, .7, .08, .05, 0, 1.9, -.295);
+  // Inspired by the supplied Dunar Wireless redhead: black leather, copper hair, athletic silhouette.
+  // This is a stylized procedural character, not a photogrammetry scan.
+  const jacket = new THREE.Mesh(new THREE.CylinderGeometry(.47, .31, .96, 16), leather);
+  jacket.position.y = 1.7;
+  jacket.castShadow = true;
+  group.add(jacket);
+  const hips = new THREE.Mesh(new THREE.SphereGeometry(.42, 16, 12), dark);
+  hips.scale.set(1.05, .45, .8);
+  hips.position.y = 1.15;
+  group.add(hips);
+  addBox(group, dark, .75, .16, .57, 0, 1.19, 0);
+  addBox(group, red, .075, .79, .075, -.15, 1.73, -.405);
+  addBox(group, red, .075, .79, .075, .15, 1.73, -.405);
+  addBox(group, trim, .24, .065, .08, 0, 1.85, -.441);
+  // Leather lapels have contrasting angled edges.
+  for (const side of [-1, 1]) {
+    const lapel = addBox(group, leather, .24, .56, .09, side * .23, 1.97, -.42);
+    lapel.rotation.z = side * .27;
+    addBox(group, red, .035, .35, .07, side * .29, 1.98, -.47);
+  }
+  const belt = addBox(group, leather, .83, .17, .62, 0, 1.12, 0);
+  belt.castShadow = true;
+  addBox(group, trim, .23, .13, .07, 0, 1.13, -.36);
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(.17, .2, .22, 10), skin);
   neck.position.y = 2.23;
   group.add(neck);
@@ -122,11 +144,35 @@ function makeBigRed(): {
   lips.position.set(0, 2.40, -.369);
   group.add(lips);
   addBox(group, trim, .59, .09, .07, 0, 1.88, -.313);
+  // Twelve independent corkscrew hair strands trail over the shoulders.
+  const hairLocks: THREE.Group[] = [];
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 6; i++) {
+      const curlRoot = new THREE.Group();
+      curlRoot.position.set(side * (.22 + i * .032), 2.82 - i * .017, -.02 + i * .052);
+      const length = .68 + (i % 3) * .17;
+      const points: THREE.Vector3[] = [];
+      for (let j = 0; j <= 13; j++) {
+        const t = j / 13;
+        const spiral = Math.sin(t * Math.PI * (2.6 + i * .12) + i * .7);
+        points.push(new THREE.Vector3(side * (.075 + t * .12) + spiral * .042,
+          -t * length, Math.cos(t * Math.PI * 4 + i) * .055 + t * .025));
+      }
+      const curve = new THREE.CatmullRomCurve3(points);
+      const lock = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, .055 + i * .003, 6, false),
+        i % 3 === 0 ? hairShadow : copperHair);
+      lock.castShadow = true;
+      curlRoot.add(lock);
+      group.add(curlRoot);
+      hairLocks.push(curlRoot);
+    }
+  }
   const leftArm = new THREE.Group(), rightArm = new THREE.Group();
   for (const [arm, side] of [[leftArm, -1], [rightArm, 1]] as const) {
     arm.position.set(side * .66, 2.02, 0);
-    addBox(arm, red, .35, .78, .41, 0, -.38, 0);
+    addBox(arm, leather, .35, .78, .41, 0, -.38, 0);
     addBox(arm, dark, .34, .26, .35, 0, -.87, 0);
+    addBox(arm, red, .06, .62, .08, side * .16, -.35, -.23);
     addBox(arm, trim, .37, .07, .08, 0, -.61, -.23);
     group.add(arm);
   }
@@ -134,10 +180,11 @@ function makeBigRed(): {
   for (const [leg, side] of [[leftLeg, -1], [rightLeg, 1]] as const) {
     leg.position.set(side * .26, 1.13, 0);
     addBox(leg, dark, .41, 1.0, .45, 0, -.51, 0);
-    addBox(leg, red, .47, .28, .65, 0, -1.0, -.12);
+    addBox(leg, leather, .47, .28, .65, 0, -1.0, -.12);
+    addBox(leg, red, .08, .22, .1, side * .16, -1.0, -.45);
     group.add(leg);
   }
-  return {group, leftArm, rightArm, leftLeg, rightLeg};
+  return {group, leftArm, rightArm, leftLeg, rightLeg, hairLocks};
 }
 
 function makeCar(): THREE.Group {
@@ -180,6 +227,9 @@ export function BigRed3DMode() {
   const touchRef = useRef<TouchInputVector>(neutral());
   const actionRef = useRef(false);
   const photoRef = useRef<(() => void) | null>(null);
+  const frontViewRef = useRef(false);
+  const [frontView, setFrontView] = useState(false);
+  const toggleView = () => {frontViewRef.current = !frontViewRef.current; setFrontView(frontViewRef.current);};
   const [restartSeed, restart] = useState(0);
   const [error, setError] = useState('');
   const [hud, setHud] = useState<Hud>({mission: 0, speed: 0, driving: false, distance: 0});
@@ -493,6 +543,10 @@ export function BigRed3DMode() {
         hero.rightArm.rotation.x = -wave;
         hero.leftLeg.rotation.x = -wave;
         hero.rightLeg.rotation.x = wave;
+        hero.hairLocks.forEach((lock, i) => {
+          lock.rotation.z = Math.sin(timestamp * .0035 + i * .8) * .045 + (moving ? Math.sin(walkTime + i) * .035 : 0);
+          lock.rotation.x = Math.sin(timestamp * .0028 + i * .6) * .035;
+        });
       }
       player.x = THREE.MathUtils.clamp(player.x, -115, 115);
       player.z = THREE.MathUtils.clamp(player.z, -115, 115);
@@ -531,10 +585,13 @@ export function BigRed3DMode() {
       }
       // Stable chase camera with optional drag-to-orbit inspection.
       const a = heading + orbit;
-      const dist = driving ? 12 : 8.2;
+      const front = frontViewRef.current;
+      const sign = front ? -1 : 1;
+      const dist = front ? (driving ? 8 : 5.2) : (driving ? 12 : 8.2);
       const focus = player.clone().add(new THREE.Vector3(0, driving ? 1.3 : 1.8, 0));
-      desiredCamera.set(player.x + Math.sin(a) * dist,
-        (driving ? 5.5 : 4.2) + cameraPitch * 6, player.z + Math.cos(a) * dist);
+      desiredCamera.set(player.x + Math.sin(a) * dist * sign,
+        (front ? 3 : (driving ? 5.5 : 4.2)) + cameraPitch * 6,
+        player.z + Math.cos(a) * dist * sign);
       camera.position.lerp(desiredCamera, Math.min(1, dt * 5));
       camera.lookAt(focus);
       targetRing.rotation.z = timestamp * .0003;
@@ -666,11 +723,16 @@ export function BigRed3DMode() {
           <button type="button" onClick={resetRun} className="pointer-events-auto rounded-xl border border-white/30 bg-slate-950/90 px-4 py-3 text-xs font-semibold hover:bg-slate-800" aria-label="Restart all Big Red missions">Restart</button>
         </div>
       </div>
-      <div className="pointer-events-none absolute inset-x-3 bottom-4 z-20 flex justify-center sm:bottom-6">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/20 bg-slate-950/80 p-2 text-xs shadow-2xl backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-x-3 bottom-36 z-20 flex justify-center sm:bottom-6">
+        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/20 bg-slate-950/80 p-2 text-xs shadow-2xl backdrop-blur-md">
           <button type="button" onClick={() => {actionRef.current = true;}}
             className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-500">
             {hud.driving ? 'EXIT RIDE (E)' : 'ENTER RIDE (E)'}
+          </button>
+          <button type="button" onClick={toggleView}
+            className="min-h-11 rounded-xl border border-rose-400/60 bg-rose-950/80 px-3 font-bold text-white hover:bg-rose-800"
+            aria-pressed={frontView} aria-label="Toggle front-facing character camera">
+            {frontView ? '🎥 CHASE' : '🎥 FRONT'}
           </button>
           <button type="button" onClick={() => photoRef.current?.()}
             className="min-h-11 rounded-xl border border-cyan-400/60 bg-cyan-900/70 px-3 font-bold text-white hover:bg-cyan-700"
