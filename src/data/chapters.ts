@@ -1,9 +1,11 @@
 import {StoryChapter, VehicleTrim} from '../types/game';
 
+const ASSET_BASE = import.meta.env.BASE_URL;
+
 export const POSTER_ASSETS = {
-  gta20Duo: '/assets/aistudio/file_0000000087d081f5b906ecd062ae4c83_2828f907.png',
-  crazyEVegas: '/assets/aistudio/file_00000000db7081f598eaec92390beddf_3fd9c0fe.png',
-  worldstarTrio: '/assets/aistudio/Screenshot_20261113_212935_Google_1c223eae.jpg',
+  gta20Duo: `${ASSET_BASE}assets/aistudio/file_0000000087d081f5b906ecd062ae4c83_2828f907.png`,
+  crazyEVegas: `${ASSET_BASE}assets/aistudio/file_00000000db7081f598eaec92390beddf_3fd9c0fe.png`,
+  worldstarTrio: `${ASSET_BASE}assets/aistudio/Screenshot_20261113_212935_Google_1c223eae.jpg`,
 };
 
 export const VEHICLE_TRIMS: VehicleTrim[] = [
