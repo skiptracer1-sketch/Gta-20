@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {BigRed3DMode} from './BigRed3DMode';
+import {AFTER_DARK_CAST, DEFAULT_CREW_MEMBER} from '../data/afterDarkCast';
 
 type Choice = {
   label: string;
@@ -19,6 +20,7 @@ type NightOperation = {
 };
 
 const SAVE_KEY = 'gta20_after_dark_story_v1';
+const CAST_SAVE_KEY = 'gta20_after_dark_cast_v1';
 
 const OPERATIONS: NightOperation[] = [
   {
@@ -87,6 +89,21 @@ export function AfterDarkMode() {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(true);
   const [progress, setProgress] = useState<Progress>(initialProgress);
+  const [castOpen, setCastOpen] = useState(false);
+  const [characterId, setCharacterId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(CAST_SAVE_KEY);
+      if (AFTER_DARK_CAST.some(member => member.id === saved)) return saved!;
+    } catch { /* Private browsing can block localStorage */ }
+    return DEFAULT_CREW_MEMBER.id;
+  });
+  const selectedCrew = AFTER_DARK_CAST.find(member => member.id === characterId) ?? DEFAULT_CREW_MEMBER;
+  const chooseCrew = (id: string) => {
+    setCharacterId(id);
+    try { localStorage.setItem(CAST_SAVE_KEY, id); } catch {}
+    setCastOpen(false);
+    setBriefingOpen(false);
+  };
 
   useEffect(() => {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch {}
@@ -151,12 +168,17 @@ export function AfterDarkMode() {
       <BigRed3DMode afterDark={{
         waypoint,
         paused: briefingOpen,
+        characterId,
         status: operation ? (progress.arrived ? 'Contact unlocked · open dossier' : `Head to ${operation.district}`) : 'All three contacts cleared',
       }} />
-      <div className="pointer-events-none absolute left-3 top-32 z-30 sm:left-6">
+      <div className="pointer-events-none absolute left-3 top-32 z-30 flex flex-col items-start gap-2 sm:left-6">
         <button type="button" onClick={() => setBriefingOpen(true)}
           className="pointer-events-auto min-h-11 rounded-xl border border-rose-400/60 bg-black/85 px-4 py-2 text-xs font-black tracking-wider text-rose-100 shadow-lg backdrop-blur-md hover:bg-rose-950 focus-visible:outline-2 focus-visible:outline-cyan-300">
           🌙 AFTER DARK · {progress.stage}/{OPERATIONS.length} CONTACTS
+        </button>
+        <button type="button" onClick={() => {setCastOpen(true); setBriefingOpen(true);}}
+          className="pointer-events-auto min-h-11 rounded-xl border border-cyan-400/60 bg-black/85 px-4 py-2 text-xs font-black tracking-wider text-cyan-100 shadow-lg backdrop-blur-md hover:bg-cyan-950 focus-visible:outline-2 focus-visible:outline-cyan-300">
+          👥 CREW · {selectedCrew.name}
         </button>
       </div>
       {briefingOpen && (
@@ -166,13 +188,36 @@ export function AfterDarkMode() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold tracking-[.28em] text-rose-300">18+ · MIDNIGHT DOSSIER</p>
-                <h2 className="mt-2 text-2xl font-black">BIG RED: AFTER DARK</h2>
+                <h2 className="mt-2 text-2xl font-black">{castOpen ? 'AFTER DARK · THE CREW' : 'BIG RED: AFTER DARK'}</h2>
               </div>
               <button type="button" onClick={() => setBriefingOpen(false)}
                 className="min-h-11 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
                 Return to 3D City
               </button>
             </div>
+            {castOpen ? (
+              <div className="mt-5">
+                <p className="text-sm leading-relaxed text-slate-300">
+                  Switch between original, stylized crew avatars inspired by the Dunar Wireless ensemble.
+                  Big Red leads the story by default. Switching a character respawns at the 3D city start.
+                  These are game stand-ins, not exact photo likenesses.
+                </p>
+                <div className="mt-4 grid max-h-[55dvh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
+                  {AFTER_DARK_CAST.map(member => (
+                    <button key={member.id} type="button" onClick={() => chooseCrew(member.id)}
+                      aria-pressed={characterId === member.id}
+                      className={`min-h-36 rounded-2xl border p-3 text-left transition hover:border-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-300 ${characterId === member.id ? 'border-cyan-300 bg-cyan-950/55' : 'border-white/15 bg-black/55'}`}>
+                      <span aria-hidden="true" className="mb-2 block h-14 w-14 rounded-full border-4 border-white/15 shadow-lg"
+                        style={{background: `linear-gradient(135deg, #${member.appearance.hair.toString(16).padStart(6, '0')}, #${member.appearance.accent.toString(16).padStart(6, '0')})`}} />
+                      <span className="block text-sm font-black text-white">{member.name}</span>
+                      <span className="mt-1 block text-xs text-slate-300">{member.role}</span>
+                      {member.id === DEFAULT_CREW_MEMBER.id && <span className="mt-2 block text-[10px] font-black text-rose-300">LEAD CHARACTER</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-xl border border-white/10 bg-black/35 p-3">
                 <div className="text-slate-400">Night influence</div>
@@ -233,6 +278,8 @@ export function AfterDarkMode() {
                   className="mt-5 min-h-12 w-full rounded-xl bg-rose-600 px-4 py-3 font-bold hover:bg-rose-500">
                   Replay After Dark Story
                 </button>
+              </>
+            )}
               </>
             )}
           </section>
