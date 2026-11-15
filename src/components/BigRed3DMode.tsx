@@ -178,6 +178,7 @@ export function BigRed3DMode() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const touchRef = useRef<TouchInputVector>(neutral());
   const actionRef = useRef(false);
+  const photoRef = useRef<(() => void) | null>(null);
   const [restartSeed, restart] = useState(0);
   const [error, setError] = useState('');
   const [hud, setHud] = useState<Hud>({mission: 0, speed: 0, driving: false, distance: 0});
@@ -209,6 +210,19 @@ export function BigRed3DMode() {
     scene.background = new THREE.Color(0x030715);
     scene.fog = new THREE.FogExp2(0x030715, .008);
     const camera = new THREE.PerspectiveCamera(65, 1, .1, 380);
+    photoRef.current = () => {
+      // Capture the WebGL scene directly at the current camera angle, without HUD overlays.
+      try {
+        renderer.render(scene, camera);
+        const image = renderer.domElement.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = 'GTA20_BigRed3D_' + Date.now() + '.png';
+        link.click();
+      } catch (err) {
+        console.error('Big Red photo capture failed', err);
+      }
+    };
     scene.add(new THREE.HemisphereLight(0x95cbff, 0x1b0f20, 2.2));
     const sun = new THREE.DirectionalLight(0xffffff, 2.4);
     sun.position.set(-30, 70, -40);
@@ -504,6 +518,7 @@ export function BigRed3DMode() {
     raf = requestAnimationFrame(update);
     return () => {
       active = false;
+      photoRef.current = null;
       cancelAnimationFrame(raf);
       observer.disconnect();
       window.removeEventListener('keydown', onKeyDown);
@@ -564,6 +579,11 @@ export function BigRed3DMode() {
           <button type="button" onClick={() => {actionRef.current = true;}}
             className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-500">
             {hud.driving ? 'EXIT RIDE (E)' : 'ENTER RIDE (E)'}
+          </button>
+          <button type="button" onClick={() => photoRef.current?.()}
+            className="min-h-11 rounded-xl border border-cyan-400/60 bg-cyan-900/70 px-3 font-bold text-white hover:bg-cyan-700"
+            aria-label="Save a clean 3D gameplay screenshot">
+            📸 PHOTO
           </button>
           <span className="hidden max-w-64 text-slate-200 sm:inline">WASD / arrows to move · Space to sprint or boost · drag scene to orbit</span>
         </div>
