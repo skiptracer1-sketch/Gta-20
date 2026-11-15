@@ -1,0 +1,20 @@
+name: Verify GTA 20 game
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, 'fix/**']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies using lockfile
+        run: bun install --frozen-lockfile
+      - name: Type check
+        run: bun run lint
+      - name: Production build
+        run: bun run build
