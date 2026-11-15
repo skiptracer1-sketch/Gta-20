@@ -38,6 +38,13 @@ jobs:
         env:
           GITHUB_PAGES: 'true'
         run: bun run build
+      - name: Verify complete publish bundle
+        run: |
+          test -s dist/index.html
+          test -s dist/big-red/index.html
+          test -d dist/assets
+          grep -q '/Gta-20/assets/' dist/index.html
+          echo 'Validated main game, Big Red standalone, and Pages asset base'
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload full GTA 20 and Big Red game
