@@ -176,6 +176,7 @@ function makeCar(): THREE.Group {
 
 export function BigRed3DMode() {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const minimapRef = useRef<HTMLCanvasElement | null>(null);
   const touchRef = useRef<TouchInputVector>(neutral());
   const actionRef = useRef(false);
   const photoRef = useRef<(() => void) | null>(null);
@@ -211,16 +212,45 @@ export function BigRed3DMode() {
     scene.fog = new THREE.FogExp2(0x030715, .008);
     const camera = new THREE.PerspectiveCamera(65, 1, .1, 380);
     photoRef.current = () => {
-      // Capture the WebGL scene directly at the current camera angle, without HUD overlays.
+      // Render the actual 3D world in 9:16, rather than enlarging a screenshot.
+      // A dedicated render target avoids relying on preserveDrawingBuffer.
+      const width = 1080, height = 1920;
+      const oldTarget = renderer.getRenderTarget();
+      const oldAspect = camera.aspect;
+      const target = new THREE.WebGLRenderTarget(width, height, {
+        format: THREE.RGBAFormat, type: THREE.UnsignedByteType,
+        depthBuffer: true, stencilBuffer: false,
+      });
       try {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setRenderTarget(target);
         renderer.render(scene, camera);
-        const image = renderer.domElement.toDataURL('image/png');
+        const bottomUp = new Uint8Array(width * height * 4);
+        renderer.readRenderTargetPixels(target, 0, 0, width, height, bottomUp);
+        const output = document.createElement('canvas');
+        output.width = width;
+        output.height = height;
+        const ctx = output.getContext('2d');
+        if (!ctx) throw new Error('2D canvas unavailable for PNG encoding');
+        const frame = ctx.createImageData(width, height);
+        const stride = width * 4;
+        for (let y = 0; y < height; y++) {
+          const from = (height - 1 - y) * stride;
+          frame.data.set(bottomUp.subarray(from, from + stride), y * stride);
+        }
+        ctx.putImageData(frame, 0, 0);
         const link = document.createElement('a');
-        link.href = image;
-        link.download = 'GTA20_BigRed3D_' + Date.now() + '.png';
+        link.href = output.toDataURL('image/png');
+        link.download = 'GTA20_BigRed3D_1080x1920_' + Date.now() + '.png';
         link.click();
       } catch (err) {
-        console.error('Big Red photo capture failed', err);
+        console.error('Big Red 1080x1920 capture failed', err);
+      } finally {
+        renderer.setRenderTarget(oldTarget);
+        camera.aspect = oldAspect;
+        camera.updateProjectionMatrix();
+        target.dispose();
       }
     };
     scene.add(new THREE.HemisphereLight(0x95cbff, 0x1b0f20, 2.2));
@@ -466,11 +496,14 @@ export function BigRed3DMode() {
       }
       player.x = THREE.MathUtils.clamp(player.x, -115, 115);
       player.z = THREE.MathUtils.clamp(player.z, -115, 115);
-      if (isBlocked(player.x, player.z, driving ? 1.15 : .42)) {
-        player.x = previousX;
-        player.z = previousZ;
-        if (driving) speed *= -.15;
-      }
+      // Resolve each axis independently so the player can slide along walls.
+      const attemptedX = player.x, attemptedZ = player.z;
+      const clearance = driving ? 1.35 : .42;
+      const xIsOpen = !isBlocked(attemptedX, previousZ, clearance);
+      player.x = xIsOpen ? attemptedX : previousX;
+      const zIsOpen = !isBlocked(player.x, attemptedZ, clearance);
+      player.z = zIsOpen ? attemptedZ : previousZ;
+      if (driving && !xIsOpen && !zIsOpen) speed *= -.15;
       if (driving) car.position.set(player.x, .04, player.z);
       else hero.group.position.copy(player);
       for (let i = 0; i < crowd.length; i++) {
@@ -507,6 +540,60 @@ export function BigRed3DMode() {
       targetRing.rotation.z = timestamp * .0003;
       renderer.render(scene, camera);
       if (++frame % 10 === 0) {
+        const map = minimapRef.current;
+        const ctx = map?.getContext('2d');
+        if (ctx) {
+          const side = map!.width;
+          const toMap = (coord: number) => (coord + 120) * side / 240;
+          ctx.clearRect(0, 0, side, side);
+          ctx.fillStyle = '#071426';
+          ctx.fillRect(0, 0, side, side);
+          ctx.fillStyle = '#193349';
+          ctx.fillRect(toMap(-8), 0, toMap(8) - toMap(-8), side);
+          ctx.fillRect(0, toMap(-8), side, toMap(8) - toMap(-8));
+          ctx.fillStyle = '#406078';
+          for (const building of obstacles) {
+            ctx.fillRect(toMap(building.x - building.rx), toMap(building.z - building.rz),
+              building.rx * 2 * side / 240, building.rz * 2 * side / 240);
+          }
+          const nextGoal = GOALS[mission];
+          if (nextGoal) {
+            ctx.strokeStyle = '#2eeaff';
+            ctx.lineWidth = 1.4;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(toMap(player.x), toMap(player.z));
+            ctx.lineTo(toMap(nextGoal.x), toMap(nextGoal.z));
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#37e9ff';
+            ctx.beginPath();
+            ctx.arc(toMap(nextGoal.x), toMap(nextGoal.z), 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (!driving) {
+            ctx.fillStyle = '#ff4d70';
+            ctx.fillRect(toMap(car.position.x) - 3, toMap(car.position.z) - 4, 6, 8);
+          }
+          ctx.save();
+          ctx.translate(toMap(player.x), toMap(player.z));
+          ctx.rotate(-heading);
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#f5225a';
+          ctx.lineWidth = 2.3;
+          ctx.beginPath();
+          ctx.moveTo(0, -10);
+          ctx.lineTo(6, 8);
+          ctx.lineTo(0, 5);
+          ctx.lineTo(-6, 8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          ctx.strokeStyle = 'rgba(55, 233, 255, .45)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(1, 1, side - 2, side - 2);
+        }
         setHud({
           mission,
           speed: driving ? Math.round(Math.abs(speed) * 3.6) : Math.round(Math.abs(vertical) * (boost ? 9.5 : 5.3)),
@@ -559,6 +646,11 @@ export function BigRed3DMode() {
   return (
     <section className="relative isolate mx-auto h-[calc(100dvh-4rem)] min-h-[540px] w-full overflow-hidden bg-[#030715] text-white" aria-label="Playable Big Red 3D open world">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute right-3 top-44 z-10 overflow-hidden rounded-2xl border border-cyan-400/45 bg-[#071426]/90 p-1 shadow-lg sm:right-6 sm:top-24"
+        aria-label="Live minimap showing player, streets, buildings and next mission">
+        <canvas ref={minimapRef} width={160} height={160} className="block h-28 w-28 sm:h-36 sm:w-36" />
+        <p className="px-1 pb-0.5 pt-1 text-center text-[10px] font-bold tracking-widest text-cyan-200">NEON CITY · GPS</p>
+      </div>
       {error && <div role="alert" className="absolute inset-0 z-50 grid place-content-center bg-slate-950 p-8 text-center text-rose-300">{error}</div>}
       <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col gap-2 sm:inset-x-6 sm:flex-row sm:justify-between">
         <div className="max-w-md rounded-2xl border border-white/20 bg-slate-950/75 p-3 backdrop-blur-md">
@@ -583,7 +675,7 @@ export function BigRed3DMode() {
           <button type="button" onClick={() => photoRef.current?.()}
             className="min-h-11 rounded-xl border border-cyan-400/60 bg-cyan-900/70 px-3 font-bold text-white hover:bg-cyan-700"
             aria-label="Save a clean 3D gameplay screenshot">
-            📸 PHOTO
+            📸 PHOTO 9:16
           </button>
           <span className="hidden max-w-64 text-slate-200 sm:inline">WASD / arrows to move · Space to sprint or boost · drag scene to orbit</span>
         </div>
