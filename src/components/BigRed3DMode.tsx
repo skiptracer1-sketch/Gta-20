@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import * as THREE from 'three';
 import {TouchControls, TouchInputVector} from './TouchControls';
 import {useGameProgress} from '../context/GameProgressContext';
+import {AFTER_DARK_CAST, DEFAULT_CREW_MEMBER, type CrewAppearance} from '../data/afterDarkCast';
 
 const SAVE_KEY = 'gta20_big_red_3d_missions_v1';
 const GOALS = [
@@ -55,7 +56,7 @@ function signSprite(text: string, tint = '#ff485e'): THREE.Sprite {
   return sprite;
 }
 
-function makeBigRed(): {
+function makeBigRed(appearance: CrewAppearance = DEFAULT_CREW_MEMBER.appearance): {
   group: THREE.Group;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
@@ -64,16 +65,16 @@ function makeBigRed(): {
   hairLocks: THREE.Group[];
 } {
   const group = new THREE.Group();
-  const red = new THREE.MeshStandardMaterial({color: 0xc4152d, metalness: .46, roughness: .3});
-  const leather = new THREE.MeshPhysicalMaterial({color: 0x0b0e18, metalness: .3,
+  const red = new THREE.MeshStandardMaterial({color: appearance.accent, metalness: .46, roughness: .3});
+  const leather = new THREE.MeshPhysicalMaterial({color: appearance.jacket, metalness: .3,
     roughness: .21, clearcoat: .86, clearcoatRoughness: .15});
   const dark = new THREE.MeshStandardMaterial({color: 0x101829, metalness: .55, roughness: .34});
-  const skin = new THREE.MeshStandardMaterial({color: 0xe8ae91, roughness: .86, metalness: 0});
-  const copperHair = new THREE.MeshStandardMaterial({color: 0xe63e19, roughness: .38, metalness: .12});
-  const hairShadow = new THREE.MeshStandardMaterial({color: 0x9c210d, roughness: .52});
+  const skin = new THREE.MeshStandardMaterial({color: appearance.skin, roughness: .86, metalness: 0});
+  const copperHair = new THREE.MeshStandardMaterial({color: appearance.hair, roughness: .38, metalness: .12});
+  const hairShadow = new THREE.MeshStandardMaterial({color: appearance.hairShadow, roughness: .52});
   const eyes = new THREE.MeshStandardMaterial({color: 0x11243c, roughness: .3});
   const trim = new THREE.MeshStandardMaterial({
-    color: 0x45eaff, emissive: 0x06a8ca, emissiveIntensity: .95, metalness: .45,
+    color: appearance.trim, emissive: appearance.trim, emissiveIntensity: .45, metalness: .45,
   });
   const addBox = (parent: THREE.Object3D, color: THREE.Material, w: number, h: number, d: number,
     x: number, y: number, z: number) => {
@@ -125,6 +126,7 @@ function makeBigRed(): {
   part.scale.set(1.55, .35, .5);
   group.add(part);
   for (const side of [-1, 1]) {
+    if (appearance.longHair) {
     const sweep = new THREE.Mesh(new THREE.CapsuleGeometry(.105, .56, 4, 8), copperHair);
     sweep.position.set(side * .31, 2.38, -.10);
     sweep.rotation.z = side * .15;
@@ -136,6 +138,7 @@ function makeBigRed(): {
       lock.position.set(side * (.37 + strand * .04), 2.18 - strand * .08, .02 + strand * .115);
       lock.rotation.z = side * (.1 + strand * .045);
       group.add(lock);
+    }
     }
     const brow = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, .035), hairShadow);
     brow.position.set(side * .14, 2.675, -.361);
@@ -152,9 +155,16 @@ function makeBigRed(): {
   lips.position.set(0, 2.40, -.369);
   group.add(lips);
   addBox(group, trim, .59, .09, .07, 0, 1.88, -.313);
-  // Twelve independent corkscrew hair strands trail over the shoulders.
+  if (appearance.beard) {
+    addBox(group, hairShadow, .36, .14, .10, 0, 2.31, -.36);
+  }
+  if (appearance.cap) {
+    addBox(group, dark, .80, .14, .69, 0, 2.91, -.03);
+    addBox(group, dark, .52, .06, .42, 0, 2.86, -.48);
+  }
+  // Twelve independent corkscrew hair strands trail over the shoulders when long-haired.
   const hairLocks: THREE.Group[] = [];
-  for (const side of [-1, 1]) {
+  if (appearance.longHair) for (const side of [-1, 1]) {
     for (let i = 0; i < 6; i++) {
       const curlRoot = new THREE.Group();
       curlRoot.position.set(side * (.22 + i * .032), 2.82 - i * .017, -.02 + i * .052);
@@ -230,7 +240,7 @@ function makeCar(): THREE.Group {
 }
 
 export function BigRed3DMode({afterDark}: {
-  afterDark?: {waypoint?: AfterDarkWaypoint; paused: boolean; status: string};
+  afterDark?: {waypoint?: AfterDarkWaypoint; paused: boolean; status: string; characterId?: string};
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const minimapRef = useRef<HTMLCanvasElement | null>(null);
@@ -245,6 +255,7 @@ export function BigRed3DMode({afterDark}: {
   const [hud, setHud] = useState<Hud>({mission: 0, speed: 0, driving: false, distance: 0});
   const {addCredits, addRep} = useGameProgress();
   const afterDarkRef = useRef(afterDark);
+  const selectedCrew = AFTER_DARK_CAST.find(member => member.id === afterDark?.characterId) ?? DEFAULT_CREW_MEMBER;
   const [nightDistance, setNightDistance] = useState<number | null>(null);
   // Keep scene state intact as narrative contacts or briefing visibility change.
   useEffect(() => { afterDarkRef.current = afterDark; }, [afterDark]);
@@ -442,7 +453,7 @@ export function BigRed3DMode({afterDark}: {
         direction: i % 3 === 0 ? -1 : 1});
     }
 
-    const hero = makeBigRed();
+    const hero = makeBigRed(selectedCrew.appearance);
     hero.group.position.set(-10, 0, -10);
     scene.add(hero.group);
     const car = makeCar();
@@ -724,7 +735,7 @@ export function BigRed3DMode({afterDark}: {
       renderer.dispose();
       if (canvas.parentElement === host) host.removeChild(canvas);
     };
-  }, [restartSeed, addCredits, addRep]);
+  }, [restartSeed, addCredits, addRep, afterDark?.characterId]);
 
   const resetRun = () => {
     try { localStorage.removeItem(SAVE_KEY); } catch {}
@@ -746,7 +757,7 @@ export function BigRed3DMode({afterDark}: {
       {error && <div role="alert" className="absolute inset-0 z-50 grid place-content-center bg-slate-950 p-8 text-center text-rose-300">{error}</div>}
       <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col gap-2 sm:inset-x-6 sm:flex-row sm:justify-between">
         <div className="max-w-md rounded-2xl border border-white/20 bg-slate-950/75 p-3 backdrop-blur-md">
-          <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">GTA 20 · Big Red 3D · Lumexus</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">GTA 20 · {afterDark ? `${selectedCrew.name} · After Dark` : 'Big Red 3D'} · Lumexus</p>
           <p className="mt-1 text-lg font-bold">{afterDark ? (nightGoal ? `After Dark: ${nightGoal.title}` : afterDark.status) : (goal ? `Mission ${hud.mission + 1}/5: ${goal.title}` : 'All five missions cleared!')}</p>
           <p className="text-xs text-slate-200">{afterDark ? (nightGoal ? `Follow the rose GPS marker · ${nightDistance ?? '...'} m` : 'Explore the city or open your midnight dossier.') : (goal ? `${goal.hint} · ${hud.distance} m` : 'Neon Run complete. Explore freely or restart.')}</p>
         </div>
