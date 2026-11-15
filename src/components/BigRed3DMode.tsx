@@ -5,9 +5,9 @@ import {useGameProgress} from '../context/GameProgressContext';
 
 const SAVE_KEY = 'gta20_big_red_3d_missions_v1';
 const GOALS = [
-  {title: 'Walk to Neon Gate', x: 14, z: -12, hint: 'Find the cyan checkpoint on foot'},
+  {title: 'Walk to Neon Gate', x: 14, z: -8, hint: 'Find the cyan checkpoint on foot'},
   {title: 'Get Behind the Wheel', x: 5, z: 5, hint: 'Find the red car and tap ENTER RIDE'},
-  {title: 'Race to Strip Plaza', x: 42, z: -12, hint: 'Drive to the glowing checkpoint'},
+  {title: 'Race to Strip Plaza', x: 42, z: -7, hint: 'Drive to the glowing checkpoint'},
   {title: 'Explore Night Market', x: -35, z: 35, hint: 'Navigate across the open city'},
   {title: 'Return to Big Red Tower', x: -5, z: 35, hint: 'Finish at the red-lit tower'},
 ] as const;
@@ -57,6 +57,10 @@ function makeBigRed(): {
   const group = new THREE.Group();
   const red = new THREE.MeshStandardMaterial({color: 0xc4152d, metalness: .46, roughness: .3});
   const dark = new THREE.MeshStandardMaterial({color: 0x101829, metalness: .55, roughness: .34});
+  const skin = new THREE.MeshStandardMaterial({color: 0xe8ae91, roughness: .86, metalness: 0});
+  const copperHair = new THREE.MeshStandardMaterial({color: 0xe63e19, roughness: .38, metalness: .12});
+  const hairShadow = new THREE.MeshStandardMaterial({color: 0x9c210d, roughness: .52});
+  const eyes = new THREE.MeshStandardMaterial({color: 0x11243c, roughness: .3});
   const trim = new THREE.MeshStandardMaterial({
     color: 0x45eaff, emissive: 0x06a8ca, emissiveIntensity: .95, metalness: .45,
   });
@@ -72,16 +76,52 @@ function makeBigRed(): {
   addBox(group, red, .95, 1.0, .55, 0, 1.65, 0);
   addBox(group, dark, .69, .2, .6, 0, 1.17, 0);
   addBox(group, trim, .7, .08, .05, 0, 1.9, -.295);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.17, .2, .22, 10), red);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.17, .2, .22, 10), skin);
   neck.position.y = 2.23;
   group.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.34, 18, 12), red);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.34, 18, 12), skin);
   head.position.set(0, 2.57, -.05);
   head.scale.set(1, 1.09, .95);
   head.castShadow = true;
   group.add(head);
-  addBox(group, trim, .59, .11, .12, 0, 2.61, -.32);
-  addBox(group, dark, .35, .1, .07, 0, 2.4, -.35);
+  // Big Red has human facial features and thick copper hair, not a red metal helmet.
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(.375, 20, 12), copperHair);
+  crown.position.set(0, 2.78, -.028);
+  crown.scale.set(1.06, .71, 1.04);
+  crown.castShadow = true;
+  group.add(crown);
+  const part = new THREE.Mesh(new THREE.SphereGeometry(.19, 12, 8), hairShadow);
+  part.position.set(.08, 2.97, -.27);
+  part.scale.set(1.55, .35, .5);
+  group.add(part);
+  for (const side of [-1, 1]) {
+    const sweep = new THREE.Mesh(new THREE.CapsuleGeometry(.105, .56, 4, 8), copperHair);
+    sweep.position.set(side * .31, 2.38, -.10);
+    sweep.rotation.z = side * .15;
+    sweep.castShadow = true;
+    group.add(sweep);
+    for (let strand = 0; strand < 3; strand++) {
+      const lock = new THREE.Mesh(new THREE.CapsuleGeometry(.064, .48 + strand * .14, 4, 7),
+        strand === 1 ? hairShadow : copperHair);
+      lock.position.set(side * (.37 + strand * .04), 2.18 - strand * .08, .02 + strand * .115);
+      lock.rotation.z = side * (.1 + strand * .045);
+      group.add(lock);
+    }
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, .035), hairShadow);
+    brow.position.set(side * .14, 2.675, -.361);
+    group.add(brow);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.047, 8, 8), eyes);
+    eye.position.set(side * .14, 2.59, -.372);
+    group.add(eye);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(.047, 8, 8), skin);
+  nose.position.set(0, 2.50, -.395);
+  group.add(nose);
+  const lips = new THREE.Mesh(new THREE.BoxGeometry(.16, .035, .025),
+    new THREE.MeshStandardMaterial({color: 0x9a4855, roughness: .8}));
+  lips.position.set(0, 2.40, -.369);
+  group.add(lips);
+  addBox(group, trim, .59, .09, .07, 0, 1.88, -.313);
   const leftArm = new THREE.Group(), rightArm = new THREE.Group();
   for (const [arm, side] of [[leftArm, -1], [rightArm, 1]] as const) {
     arm.position.set(side * .66, 2.02, 0);
@@ -221,15 +261,19 @@ export function BigRed3DMode() {
       new THREE.MeshStandardMaterial({color: 0x1c1230, metalness: .47, roughness: .63}),
       new THREE.MeshStandardMaterial({color: 0x142432, metalness: .5, roughness: .58}),
     ];
+    const obstacles: {x: number; z: number; rx: number; rz: number}[] = [];
     for (let x = -108; x <= 108; x += 18) {
       for (let z = -108; z <= 108; z += 18) {
         if (Math.abs(x) < 13 || Math.abs(z) < 13) continue;
         if (x === -36 && z === 36) continue;
         const height = 7 + Math.floor(random() * 25);
+        const footprintW = 11 + random() * 2;
+        const footprintD = 11 + random() * 2;
         const building = new THREE.Mesh(
-          new THREE.BoxGeometry(11 + random() * 2, height, 11 + random() * 2),
+          new THREE.BoxGeometry(footprintW, height, footprintD),
           buildingMats[Math.floor(random() * buildingMats.length)]
         );
+        obstacles.push({x, z, rx: footprintW / 2 + .15, rz: footprintD / 2 + .15});
         building.position.set(x, height / 2, z);
         building.receiveShadow = true;
         building.castShadow = true;
@@ -248,6 +292,9 @@ export function BigRed3DMode() {
       new THREE.MeshStandardMaterial({color: 0x310d28, metalness: .67, roughness: .24}));
     tower.position.set(-5, 26, 49);
     scene.add(tower);
+    obstacles.push({x: -5, z: 49, rx: 7.2, rz: 7.2});
+    const isBlocked = (x: number, z: number, radius: number) =>
+      obstacles.some(b => Math.abs(x - b.x) < b.rx + radius && Math.abs(z - b.z) < b.rz + radius);
     for (let h = 5; h < 53; h += 4) {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(5.55 - h * .014, .12, 6, 24), pink);
       ring.rotation.x = Math.PI / 2;
@@ -260,6 +307,32 @@ export function BigRed3DMode() {
     const welcome = signSprite('LUMEXUS 2046', '#2eeaff');
     welcome.position.set(13, 12, -22);
     scene.add(welcome);
+
+    // Procedural pedestrians use no additional downloads. Fewer draw calls on mobile.
+    const crowd: {group: THREE.Group; axis: 'x' | 'z'; origin: number; speed: number; direction: number}[] = [];
+    const coats = [
+      new THREE.MeshStandardMaterial({color: 0x217ca6, roughness: .78}),
+      new THREE.MeshStandardMaterial({color: 0x885aab, roughness: .78}),
+      new THREE.MeshStandardMaterial({color: 0xb5a36d, roughness: .78}),
+      new THREE.MeshStandardMaterial({color: 0x3b876f, roughness: .78}),
+    ];
+    const citizenSkin = new THREE.MeshStandardMaterial({color: 0xe4ae8c, roughness: .9});
+    for (let i = 0; i < (mobile ? 12 : 26); i++) {
+      const citizen = new THREE.Group();
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.28, .82, 4, 8), coats[i % coats.length]);
+      torso.position.y = 1.05;
+      citizen.add(torso);
+      const face = new THREE.Mesh(new THREE.SphereGeometry(.245, 10, 8), citizenSkin);
+      face.position.y = 1.91;
+      citizen.add(face);
+      const alongX = i % 2 === 0;
+      const lane = i % 4 < 2 ? -10 : 10;
+      citizen.position.set(alongX ? 0 : lane, 0, alongX ? lane : 0);
+      scene.add(citizen);
+      crowd.push({group: citizen, axis: alongX ? 'x' : 'z',
+        origin: -97 + random() * 194, speed: 1.1 + random() * 2.3,
+        direction: i % 3 === 0 ? -1 : 1});
+    }
 
     const hero = makeBigRed();
     hero.group.position.set(-10, 0, -10);
@@ -349,6 +422,7 @@ export function BigRed3DMode() {
         }
         actionRef.current = false;
       }
+      const previousX = player.x, previousZ = player.z;
       if (driving) {
         const braking = t.secondaryPressed || keys.has('KeyB');
         const targetSpeed = braking ? 0 : vertical * (boost ? 28 : 15);
@@ -378,7 +452,21 @@ export function BigRed3DMode() {
       }
       player.x = THREE.MathUtils.clamp(player.x, -115, 115);
       player.z = THREE.MathUtils.clamp(player.z, -115, 115);
+      if (isBlocked(player.x, player.z, driving ? 1.15 : .42)) {
+        player.x = previousX;
+        player.z = previousZ;
+        if (driving) speed *= -.15;
+      }
       if (driving) car.position.set(player.x, .04, player.z);
+      else hero.group.position.copy(player);
+      for (let i = 0; i < crowd.length; i++) {
+        const p = crowd[i];
+        const position = ((p.origin + timestamp * .001 * p.speed * p.direction + 105) % 210 + 210) % 210 - 105;
+        p.group.position[p.axis] = position;
+        p.group.position.y = Math.sin(timestamp * .008 + i) * .025;
+        p.group.rotation.y = p.axis === 'x' ? (p.direction > 0 ? -Math.PI / 2 : Math.PI / 2)
+          : (p.direction > 0 ? Math.PI : 0);
+      }
       const goal = GOALS[mission];
       if (goal) {
         targetRing.visible = targetBeam.visible = true;
