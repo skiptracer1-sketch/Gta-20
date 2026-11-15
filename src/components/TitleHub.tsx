@@ -107,6 +107,13 @@ export const TitleHub: React.FC<TitleHubProps> = ({onNavigate}) => {
               </button>
               <button
                 type="button"
+                onClick={() => handleLaunch('afterdark')}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-rose-300/40 bg-rose-950 px-5 py-3 text-sm font-bold text-rose-100 transition-colors hover:bg-rose-900 cursor-pointer"
+              >
+                🌙 Big Red: After Dark 18+
+              </button>
+              <button
+                type="button"
                 onClick={() => handleLaunch('campus2d')}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-white/15 bg-[#171C28] px-5 py-3 text-sm font-semibold text-white hover:border-cyan-400/50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
