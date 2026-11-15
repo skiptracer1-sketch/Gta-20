@@ -733,7 +733,8 @@ export function BigRed3DMode({afterDark}: {
     setHud({mission: 0, speed: 0, driving: false, distance: 0});
     restart(n => n + 1);
   };
-  const goal = afterDark ? afterDark.waypoint : GOALS[hud.mission];
+  const goal = GOALS[hud.mission];
+  const nightGoal = afterDark?.waypoint;
   return (
     <section className="relative isolate mx-auto h-[calc(100dvh-4rem)] min-h-[540px] w-full overflow-hidden bg-[#030715] text-white" aria-label="Playable Big Red 3D open world">
       <div ref={mountRef} className="absolute inset-0" />
@@ -746,8 +747,8 @@ export function BigRed3DMode({afterDark}: {
       <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col gap-2 sm:inset-x-6 sm:flex-row sm:justify-between">
         <div className="max-w-md rounded-2xl border border-white/20 bg-slate-950/75 p-3 backdrop-blur-md">
           <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">GTA 20 · Big Red 3D · Lumexus</p>
-          <p className="mt-1 text-lg font-bold">{afterDark ? (goal ? `After Dark: ${goal.title}` : afterDark.status) : (goal ? `Mission ${hud.mission + 1}/5: ${goal.title}` : 'All five missions cleared!')}</p>
-          <p className="text-xs text-slate-200">{afterDark ? (goal ? `Follow the rose GPS marker · ${nightDistance ?? '...'} m` : 'Explore the city or open your midnight dossier.') : (goal ? `${goal.hint} · ${hud.distance} m` : 'Neon Run complete. Explore freely or restart.')}</p>
+          <p className="mt-1 text-lg font-bold">{afterDark ? (nightGoal ? `After Dark: ${nightGoal.title}` : afterDark.status) : (goal ? `Mission ${hud.mission + 1}/5: ${goal.title}` : 'All five missions cleared!')}</p>
+          <p className="text-xs text-slate-200">{afterDark ? (nightGoal ? `Follow the rose GPS marker · ${nightDistance ?? '...'} m` : 'Explore the city or open your midnight dossier.') : (goal ? `${goal.hint} · ${hud.distance} m` : 'Neon Run complete. Explore freely or restart.')}</p>
         </div>
         <div className="flex items-start gap-2">
           <div className="rounded-xl border border-white/20 bg-slate-950/75 px-4 py-2 text-right text-sm backdrop-blur-md">
